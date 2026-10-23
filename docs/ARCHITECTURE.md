@@ -46,3 +46,6 @@ Settings, strategy parameter drafts and backtest drafts live in browser local st
 Local ports bind to loopback; PostgreSQL stays internal. JSON mutations use validation and bound SQL parameters, errors omit traces, provider keys stay server-side, and no authentication is simulated. No permissive CORS configuration is enabled. Runtime application containers use non-root users. This is a single local user's workspace and is not ready for internet exposure without authentication, authorization, CSRF/origin review, TLS and broader production hardening.
 
 No outbound messages, deployments, Git commits, storage relocation, system installations or optional infrastructure are performed by this foundation.
+
+
+Phase 2 additions and current contracts: see [PHASE2.md](PHASE2.md). Historical Phase 1 descriptions above are retained for context.

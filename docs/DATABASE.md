@@ -37,3 +37,6 @@ The CI Compose smoke test checks service readiness, portfolio HTTP round trips t
 ## Backup and change strategy
 
 For database upgrades, stop application mutations, make a `pg_dump` backup using the running container's configured credentials, verify a restore in a disposable database, then apply a new migration. On Windows, use binary-safe redirection or a container-side file followed by `docker cp`; avoid legacy PowerShell pipelines corrupting custom-format dump bytes. Never prune unrelated volumes/images or delete the METIS volume as a troubleshooting shortcut.
+
+
+Phase 2 additions and current contracts: see [PHASE2.md](PHASE2.md). Historical Phase 1 descriptions above are retained for context.

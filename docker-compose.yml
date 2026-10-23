@@ -29,15 +29,20 @@ services:
     ports:
       - "127.0.0.1:8000:8000"
     environment:
-      OMP_NUM_THREADS: "1"
-      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "2"
+      OPENBLAS_NUM_THREADS: "2"
+      MKL_NUM_THREADS: "2"
+      METIS_TRAINING_TIMEOUT_SECONDS: "300"
+      METIS_ALLOW_FIXTURES: "false"
+    volumes:
+      - model_artifacts:/var/lib/metis/artifacts
     healthcheck:
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
       interval: 30s
       timeout: 4s
       retries: 5
-    mem_limit: 256m
-    cpus: 0.50
+    mem_limit: 1g
+    cpus: 2.0
     restart: "no"
     logging: *logging
   spring-backend:
@@ -51,7 +56,11 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       ML_API_URL: http://ml-api:8000
       ALPHA_VANTAGE_API_KEY: ${ALPHA_VANTAGE_API_KEY:-}
-      MARKET_DAILY_LIMIT: ${MARKET_DAILY_LIMIT:-25}
+      LIVE_INGESTION_ENABLED: "false"
+      METIS_ALLOW_FIXTURES: "false"
+      MARKET_MINUTE_LIMIT: ${MARKET_MINUTE_LIMIT:-4}
+      MARKET_JOB_LIMIT: ${MARKET_JOB_LIMIT:-2}
+      MARKET_DAILY_LIMIT: ${MARKET_DAILY_LIMIT:-20}
       MARKET_MIN_INTERVAL_SECONDS: ${MARKET_MIN_INTERVAL_SECONDS:-15}
       MARKET_CACHE_HOURS: ${MARKET_CACHE_HOURS:-12}
       PROVIDER_TIMEOUT_SECONDS: ${PROVIDER_TIMEOUT_SECONDS:-12}
@@ -93,3 +102,4 @@ services:
     logging: *logging
 volumes:
   postgres_data:
+  model_artifacts:

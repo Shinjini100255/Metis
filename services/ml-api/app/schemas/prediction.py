@@ -24,6 +24,6 @@ class PredictionResponseV1(BaseModel):
 
 class ModelStatus(BaseModel):
     available: bool = False
-    status: Literal["NOT_TRAINED"] = "NOT_TRAINED"
+    status: Literal["NOT_TRAINED", "READY", "ARTIFACT_UNAVAILABLE"] = "NOT_TRAINED"
     model_version: str | None = None
-    message: str = "Prediction model not trained. Model training will be available in a later phase."
+    message: str = "No trained model is registered. Import sufficient local history and start training explicitly."

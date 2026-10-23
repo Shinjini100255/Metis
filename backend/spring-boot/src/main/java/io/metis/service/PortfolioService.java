@@ -17,7 +17,7 @@ public class PortfolioService {
   var holdings=db.rows("""
    select h.*,a.symbol,a.company_name,a.currency,p.close as latest_price,p.trading_date as price_date,p.provider
    from portfolio_holdings h join assets a on a.id=h.asset_id
-   left join lateral (select close,trading_date,provider from historical_prices where asset_id=a.id and provider='Alpha Vantage' order by trading_date desc limit 1) p on true
+   left join lateral (select close,trading_date,provider from historical_prices where asset_id=a.id order by trading_date desc,ingested_at desc limit 1) p on true
    where h.portfolio_id=? order by a.symbol
    """,id);
   BigDecimal invested=BigDecimal.ZERO,knownValue=BigDecimal.ZERO;int missing=0,mismatched=0;

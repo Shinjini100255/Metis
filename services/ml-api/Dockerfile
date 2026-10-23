@@ -8,6 +8,8 @@ WORKDIR /app
 COPY --from=build /wheels /wheels
 COPY requirements.txt requirements.lock.txt ./
 RUN pip install --no-cache-dir --no-index --find-links=/wheels -r requirements.txt -c requirements.lock.txt && rm -r /wheels && useradd --create-home --uid 10001 metis
+RUN mkdir -p /var/lib/metis/artifacts && chown -R metis:metis /var/lib/metis
+ENV METIS_ARTIFACT_DIR=/var/lib/metis/artifacts
 COPY app app
 USER metis
 EXPOSE 8000

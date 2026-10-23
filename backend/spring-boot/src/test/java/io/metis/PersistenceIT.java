@@ -15,12 +15,16 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 @SpringBootTest @AutoConfigureMockMvc @Testcontainers(disabledWithoutDocker=true)
 class PersistenceIT {
+ @org.springframework.test.context.bean.override.mockito.MockitoBean io.metis.integration.MlClient ml;
+ @Autowired io.metis.service.IngestionService ingestion;
+ @Autowired io.metis.service.ProviderBudget budget;
+
  @Container static PostgreSQLContainer<?> postgres=new PostgreSQLContainer<>("postgres:17.6-alpine");
- @DynamicPropertySource static void configure(DynamicPropertyRegistry r) {r.add("spring.datasource.url",postgres::getJdbcUrl);r.add("spring.datasource.username",postgres::getUsername);r.add("spring.datasource.password",postgres::getPassword);r.add("metis.provider-key",()->"");}
+ @DynamicPropertySource static void configure(DynamicPropertyRegistry r) {r.add("spring.datasource.url",postgres::getJdbcUrl);r.add("spring.datasource.username",postgres::getUsername);r.add("spring.datasource.password",postgres::getPassword);r.add("metis.provider-key",()->"");r.add("metis.allow-fixtures",()->"true");}
  @Autowired MockMvc mvc;@Autowired JdbcTemplate db;@Autowired ObjectMapper json;
  @Test void migrationsAndReferenceOnlySeeds() throws Exception {
-  assertEquals(2,db.queryForObject("select count(*) from flyway_schema_history where success=true",Integer.class));
-  assertEquals(13,db.queryForObject("select count(*) from information_schema.tables where table_schema='public' and table_name<>'flyway_schema_history'",Integer.class));
+  assertEquals(4,db.queryForObject("select count(*) from flyway_schema_history where success=true",Integer.class));
+  assertEquals(16,db.queryForObject("select count(*) from information_schema.tables where table_schema='public' and table_name<>'flyway_schema_history'",Integer.class));
   assertTrue(db.queryForObject("select count(*) from assets",Integer.class)>=10);assertEquals(0,db.queryForObject("select count(*) from historical_prices",Integer.class));
   mvc.perform(get("/api/v1/health")).andExpect(status().isOk()).andExpect(jsonPath("$.postgres.status").value("UP"));
   mvc.perform(get("/api/v1/assets/search?q=AAPL")).andExpect(status().isOk()).andExpect(jsonPath("$.items[0].symbol").value("AAPL"));
@@ -42,6 +46,27 @@ class PersistenceIT {
   mvc.perform(delete("/api/v1/portfolios/"+pid+"/holdings/"+hid)).andExpect(status().isNoContent());
   mvc.perform(delete("/api/v1/portfolios/"+pid)).andExpect(status().isNoContent());
   mvc.perform(get("/api/v1/portfolios/"+pid)).andExpect(status().isNotFound());
+ }
+ @Test void localFixtureImportIsIdempotentAndPreservesNumericPrecision() {
+  var bar=java.util.Map.<String,Object>of("trading_date","2024-01-02","open","100.123456","high","102.123456","low","99.123456","close","101.123456","volume",12345);
+  var quality=java.util.Map.<String,Object>of("accepted",1,"skipped",0,"rejected",0);
+  org.mockito.Mockito.when(ml.post(org.mockito.ArgumentMatchers.eq("/data/validate"),org.mockito.ArgumentMatchers.any())).thenReturn(java.util.Map.of("bars",java.util.List.of(bar),"quality",quality));
+  long id=db.queryForObject("select id from assets where symbol='MSFT'",Long.class);
+  assertEquals(1,ingestion.importLocal(id,java.util.List.of(bar),true).get("records_inserted"));
+  assertEquals(0,ingestion.importLocal(id,java.util.List.of(bar),true).get("records_inserted"));
+  assertEquals(new java.math.BigDecimal("101.123456"),db.queryForObject("select close from historical_prices where asset_id=? and provider='TEST_FIXTURE'",java.math.BigDecimal.class,id));
+  assertEquals(1,db.queryForObject("select count(*) from historical_prices where asset_id=? and provider='TEST_FIXTURE'",Integer.class,id));
+  // Keep this isolated test database's reference-data assertion independent of method order.
+  db.update("delete from historical_prices where asset_id=? and provider='TEST_FIXTURE'",id);
+ }
+ @Test void actualFailedAttemptBudgetSurvivesSubsequentTransactions() {
+  long id=budget.reserve();budget.finish(id,"PROVIDER_NETWORK");
+  assertEquals("PROVIDER_NETWORK",db.queryForObject("select outcome from provider_requests where id=?",String.class,id));
+  assertEquals("PROVIDER_RATE_LIMIT",assertThrows(io.metis.exception.ApiException.class,budget::reserve).code);
+  assertEquals(1,db.queryForObject("select count(*) from provider_requests",Integer.class));
+ }
+ @Test void liveIngestionRemainsDisabledRegardlessOfCredential() throws Exception {
+  mvc.perform(post("/api/v1/assets/1/ingest").header("X-Confirm-Live-Ingestion","true")).andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("LIVE_INGESTION_DISABLED"));
  }
  @Test void constraintsAndSwagger() throws Exception {
   assertThrows(org.springframework.dao.DataIntegrityViolationException.class,()->db.update("insert into assets(symbol,company_name,exchange,currency) values('AAPL','Duplicate','NASDAQ','USD')"));

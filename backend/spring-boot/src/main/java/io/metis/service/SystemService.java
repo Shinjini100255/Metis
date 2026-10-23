@@ -16,7 +16,7 @@ public class SystemService {
   start=System.nanoTime();
   try {var h=ml.health();out.put("ml",Map.of("status",h==null?"DOWN":h.status(),"response_ms",(System.nanoTime()-start)/1_000_000));}
   catch(Exception e) {out.put("ml",Map.of("status","UNAVAILABLE","response_ms",(System.nanoTime()-start)/1_000_000));}
-  var runs=db.rows("select status,completed_at,error_message from ingestion_runs order by started_at desc limit 1");
+  var runs=db.rows("select status,completed_at,error_message from ingestion_runs where provider='Alpha Vantage' order by started_at desc limit 1");
   var providerState=new LinkedHashMap<String,Object>();providerState.put("name",provider.name());providerState.put("configured",provider.configured());
   providerState.put("status",!provider.configured()?"NOT_CONFIGURED":runs.isEmpty()?"UNTESTED":runs.getFirst().get("status").equals("SUCCESS")?"LAST_REQUEST_SUCCEEDED":"DEGRADED");
   providerState.put("last_request",runs.isEmpty()?null:runs.getFirst());providerState.put("data_type","Historical daily, unadjusted; not real-time");out.put("provider",providerState);

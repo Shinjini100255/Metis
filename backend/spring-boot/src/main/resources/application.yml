@@ -52,3 +52,7 @@ metis:
   market-cache-hours: ${MARKET_CACHE_HOURS:12}
   market-daily-limit: ${MARKET_DAILY_LIMIT:25}
   market-min-interval-seconds: ${MARKET_MIN_INTERVAL_SECONDS:15}
+  market-minute-limit: ${MARKET_MINUTE_LIMIT:4}
+  market-job-limit: ${MARKET_JOB_LIMIT:2}
+  live-ingestion-enabled: ${LIVE_INGESTION_ENABLED:false}
+  allow-fixtures: ${METIS_ALLOW_FIXTURES:false}

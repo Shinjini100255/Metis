@@ -17,3 +17,6 @@ test-results/
 playwright-report/
 
 *.tsbuildinfo
+
+# Local development model artifacts; deployed artifacts live in the Docker volume.
+**/.artifacts/

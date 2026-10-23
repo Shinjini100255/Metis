@@ -19,7 +19,12 @@ public class ApiController {
  @GetMapping("/assets/{id}/prices") public Object prices(@PathVariable @Positive long id,@RequestParam(required=false) LocalDate from,@RequestParam(required=false) LocalDate to,@RequestParam(defaultValue="0") @Min(0) @Max(10000) int page,@RequestParam(defaultValue="100") @Min(1) @Max(1260) int size) {var end=to==null?LocalDate.now(ZoneOffset.UTC):to;return prices.prices(id,from==null?end.minusYears(1):from,end,page,size);}
  @GetMapping("/assets/{id}/indicators") public Object indicators(@PathVariable @Positive long id,@RequestParam(required=false) LocalDate from,@RequestParam(required=false) LocalDate to) {var end=to==null?LocalDate.now(ZoneOffset.UTC):to;return indicators.calculate(prices.history(id,from==null?end.minusYears(1):from,end));}
  @GetMapping("/quotes") public Object quotes() {return prices.quotes();}
- @PostMapping("/assets/{id}/ingest") public Object ingest(@PathVariable @Positive long id) {return ingestion.ingest(id);}
+ @PostMapping("/assets/{id}/ingest") public Object ingest(@PathVariable @Positive long id,@RequestHeader(value="X-Confirm-Live-Ingestion",defaultValue="false") boolean confirm) {if(!confirm) throw new io.metis.exception.ApiException(409,"CONFIRMATION_REQUIRED","Live ingestion requires explicit confirmation; use the dry-run plan first.");return ingestion.ingest(id);}
+ public record Plan(@NotEmpty @Size(max=20) List<@Positive Long> assetIds,@NotNull LocalDate from,@NotNull LocalDate to) {}
+ public record LocalImport(@NotEmpty @Size(max=5000) List<Map<String,Object>> bars,boolean developmentOnly) {}
+ @PostMapping("/ingestion/plan") public Object plan(@Valid @RequestBody Plan r) {return ingestion.plan(r.assetIds(),r.from(),r.to());}
+ @GetMapping("/ingestion/protection") public Object protection() {return ingestion.protection();}
+ @PostMapping("/assets/{id}/import") public Object localImport(@PathVariable @Positive long id,@Valid @RequestBody LocalImport r) {return ingestion.importLocal(id,r.bars(),r.developmentOnly());}
  @GetMapping("/watchlists") public Object watchlists() {return watchlists.list();}
  @PostMapping("/watchlists") @ResponseStatus(org.springframework.http.HttpStatus.CREATED) public Object createWatchlist(@Valid @RequestBody Name r) {return watchlists.create(r.name());}
  @PostMapping("/watchlists/{id}/assets") @ResponseStatus(org.springframework.http.HttpStatus.NO_CONTENT) public void addWatchlistAsset(@PathVariable @Positive long id,@Valid @RequestBody AssetId r) {watchlists.add(id,r.assetId());}

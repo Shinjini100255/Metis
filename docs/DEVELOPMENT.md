@@ -86,3 +86,6 @@ This helper uses an isolated `.cache/edge-cdp` profile, a loopback-only debuggin
 ## Dependency / repository hygiene
 
 Use `npm ci` for reproducible installs; review dependency updates deliberately. Python direct pins and `requirements.lock.txt` constraints are committed; regenerate the lock only in a clean intended environment and test Python 3.12 as well as the local host. Maven uses the pinned parent/BOM. Do not check in `.env`, `.venv`, `.tools`, `.cache`, node_modules, target, dist, screenshots or credentials. No Git repository was present at inspection; ignore rules/CI are prepared, but no remote, commit, push or hosted deployment was created.
+
+
+Phase 2 additions and current contracts: see [PHASE2.md](PHASE2.md). Historical Phase 1 descriptions above are retained for context.

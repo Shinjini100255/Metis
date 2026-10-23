@@ -73,3 +73,6 @@ A portfolio returns `invested_capital`, `market_value`, `unrealized_pl`, `known_
 | GET | /openapi.json | OpenAPI schema |
 
 Version-1 prediction request/response Pydantic schemas are defined in `app/schemas/prediction.py`, including symbol validation, model version, target date, value, bounded probability and timestamp. They are future contract types, not an advertised inference endpoint. No trained model, randomized prediction, or fake experiment is present.
+
+
+Phase 2 additions and current contracts: see [PHASE2.md](PHASE2.md). Historical Phase 1 descriptions above are retained for context.

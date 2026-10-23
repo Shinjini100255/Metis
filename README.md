@@ -1,5 +1,7 @@
 # METIS
 
+Phase 2 local data, training, model registry and prediction integration are implemented and verified with isolated fixtures. Genuine market-data validation remains pending a sufficiently long real local dataset. See [current acceptance](docs/STATUS.md) and [Phase 2 guide](docs/PHASE2.md).
+
 **Financial Intelligence & MLOps Platform** · local research workspace · foundation v0.1.0
 
 METIS combines historical market exploration, deterministic financial analytics, paper portfolios, and explicit model-service availability. The application never seeds market history, predictions, portfolios, or backtest performance. It is a single-user development application without authentication; public deployment requires further hardening.

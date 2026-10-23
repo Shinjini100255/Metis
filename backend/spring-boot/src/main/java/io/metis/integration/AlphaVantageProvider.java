@@ -10,9 +10,9 @@ import java.time.*;
 import java.util.*;
 @Component
 public class AlphaVantageProvider implements MarketDataProvider {
- private final String key;private final int timeout,retries;private final ObjectMapper json;private final HttpClient client;
+ private final String key;private final int timeout;private final ObjectMapper json;private final HttpClient client;
  public AlphaVantageProvider(@Value("${metis.provider-key}") String key,@Value("${metis.provider-timeout-seconds}") int timeout,@Value("${metis.provider-retries}") int retries,ObjectMapper json) {
-  this.key=key;this.timeout=Math.clamp(timeout,2,30);this.retries=Math.clamp(retries,0,1);this.json=json;
+  this.key=key;this.timeout=Math.clamp(timeout,2,30);this.json=json;
   client=HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(this.timeout)).build();
  }
  public String name() {return "Alpha Vantage";}
@@ -20,20 +20,19 @@ public class AlphaVantageProvider implements MarketDataProvider {
  public List<Bar> fetch(String symbol) {
   if(!configured()) throw new ApiException(503,"PROVIDER_NOT_CONFIGURED","Configure ALPHA_VANTAGE_API_KEY on the backend to fetch historical daily data.");
   var uri=URI.create("https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&outputsize=compact&symbol="+URLEncoder.encode(symbol,StandardCharsets.UTF_8)+"&apikey="+URLEncoder.encode(key,StandardCharsets.UTF_8));
-  for(int attempt=0;attempt<=retries;attempt++) {
-   try {
-    var response=client.send(HttpRequest.newBuilder(uri).timeout(Duration.ofSeconds(timeout)).GET().build(),HttpResponse.BodyHandlers.ofString());
-    if(response.statusCode()!=200) throw new ApiException(502,"PROVIDER_HTTP","Historical provider returned HTTP "+response.statusCode()+". Retry later.");
-    return parse(response.body());
-   } catch(ApiException e) {throw e;}
-   catch(InterruptedException e) {Thread.currentThread().interrupt();throw new ApiException(503,"PROVIDER_INTERRUPTED","Provider request interrupted.");}
-   catch(Exception e) {if(attempt==retries) throw new ApiException(502,"PROVIDER_NETWORK","Historical provider could not be reached within the timeout.");}
-  }
-  throw new ApiException(502,"PROVIDER_NETWORK","Historical provider unavailable.");
+  try {
+   var response=client.send(HttpRequest.newBuilder(uri).timeout(Duration.ofSeconds(timeout)).GET().build(),HttpResponse.BodyHandlers.ofString());
+   if(response.statusCode()!=200) throw new ApiException(502,"PROVIDER_HTTP","Historical provider returned HTTP "+response.statusCode()+". No automatic retry.");
+   return parse(response.body());
+  } catch(ApiException e) {throw e;}
+  catch(InterruptedException e) {Thread.currentThread().interrupt();throw new ApiException(503,"PROVIDER_INTERRUPTED","Provider request interrupted.");}
+  catch(Exception e) {throw new ApiException(502,"PROVIDER_NETWORK","Historical provider could not be reached within the timeout.");}
  }
+
  public List<Bar> parse(String body) {
   try {
    var root=json.readTree(body);
+   if(root.has("Note")||root.has("Information")) throw new ApiException(429,"PROVIDER_QUOTA","Provider reported a quota or plan restriction. No automatic retry will occur.");
    var zone=root.path("Meta Data").path("5. Time Zone").asText("");
    if(!zone.isEmpty() && !Set.of("US/Eastern","America/New_York").contains(zone)) throw new ApiException(502,"UNSUPPORTED_MARKET","This adapter is configured for US equities. The provider returned a different market timezone.");
    var series=root.get("Time Series (Daily)");

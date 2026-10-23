@@ -1,3 +1,101 @@
+# METIS Phase 2 — local pipeline verified; real-data acceptance pending
+
+Verified **24 October 2026 (Asia/Calcutta)** in `D:\QuantOPs\Metis`.
+
+**Phase 1 remains operational. Phase 2's local-data, feature, training, registry, inference and React integration are implemented and verified using isolated development fixtures. Phase 2 is not fully real-data accepted: the main database contains no genuine historical prices, and live-provider verification was deliberately not performed.**
+
+Frontend: **http://localhost:5173**. Swagger: **http://localhost:8080/swagger-ui/index.html**.
+
+**Alpha Vantage requests made: exactly 0.** The configured key's presence was checked as a boolean, without printing its value. Main live ingestion remains disabled, fixture mode remains disabled, and the persistent provider-attempt ledger is empty. No credential is missing; no live request is authorized. Fixture prices, model metrics and predictions were never put in the main database or main artifact volume.
+
+## Implemented milestones
+
+| Milestone | Result and verification |
+|---|---|
+| A — data engineering | Local CSV/API import; transactional, idempotent persistence with numeric precision and source preservation; rejection/skip counters; closed-session validation; deduplicated dry-run session-gap planning; persistent per-attempt quota protection; all requested indicators share one Python engine and pass independent numerical/causality checks. Live requests default off. |
+| B — features/targets | 18 causal features, SHA-256 dataset identity, next-available-observation direction/return targets, final unlabeled observation excluded, chronological rolling folds, label-boundary purge, final untouched holdout, training-only variance selection/scaling. |
+| C — models/evaluation | Logistic Regression, Random Forest and CPU XGBoost; five fitted classifier/regressor variants across three families; majority/previous-direction/zero-return baselines; per-fold and aggregate metrics, periods, counts, timing, complexity, class distribution/confusion matrix and null-safe undefined metrics. Sequential fixture training only; no financial-performance claim. |
+| D — registry/inference | Existing model tables extended; dataset/job persistence; one bounded asynchronous worker; skops/native-JSON artifacts and preprocessing in a named volume; checksums/schema/library compatibility/UUID path guards; typed training-status and inference contracts; Spring reconciliation/persistence; fresh after-close forward inference, evaluation-date exclusion, stale/already-closed-target rejection, duplicate prevention and actual-outcome fields. |
+| E — React/integration | Existing eleven routes and styles preserved. Connected coverage, indicators/overlays/features, explicit CSV import/training/prediction controls, registry/evaluation/job/prediction history, protection settings and research status. No automatic download or training on page open. Existing read-only Markets functionality uses the repaired stored-source queries. |
+
+The verified isolated end-to-end case imports **480 fixture sessions twice**, validates indicators/features, trains/evaluates/registers **five estimators**, rejects retroactive inference, imports **40 subsequent fixture sessions**, then persists **two genuine estimator outputs** (classification and return) marked **DEVELOPMENT_ONLY**. These are synthetic-input software tests, never genuine market predictions. The verified case therefore has 520 price rows; the retained test environment also contains earlier explicitly labeled diagnostic cases.
+
+## Errors identified and repaired during execution
+
+| Root cause | Repair |
+|---|---|
+| The existing Nginx 32 KB request limit rejected a 66 KB daily-history import with HTTP 413 | Added a 1 MB limit scoped only to `/api/v1/assets/{id}/import`; retained the original small limit elsewhere. |
+| RestClient created its own default Jackson converter, serializing Java dates differently from the application contract; Python planning returned 422 | MlClient now uses Spring's configured ObjectMapper. Added an actual local-HTTP serialization regression test for LocalDate and SQL Date. |
+| The model reconciliation scheduler could throw while PostgreSQL was normally restarting, producing an ERROR even though services recovered | Added database-outage handling that preserves jobs and retries on the next scheduled check; regression test verifies recovery without provider calls or retraining. Repeated the normal-restart smoke; final backend has zero ERROR/FATAL entries. |
+| New quota configuration needed proxy-safe access because transactional Spring services use proxies | Quota values are obtained through service methods rather than proxy fields. Persistent reservation/outcome writes use separate transactions and advisory locking; failed attempts consume budget. |
+| Local imports could otherwise be mistaken for successful Alpha Vantage activity | Provider health now scopes its last-request query to Alpha Vantage; local coverage and ingestion history remain independently visible. |
+| The prediction summary could show a different task's newest record, hiding the selected classifier's probability | Summary selects the chosen model's latest prediction; probabilities use a probability format. Added a regression test. Removed the obsolete Predictions SOON tag. |
+| The Windows console could not print an arrow in the final E2E diagnostic | Used ASCII diagnostic output; the complete E2E script subsequently exits successfully. Source files use UTF-8. |
+
+No applied migration was edited. No PostgreSQL reset, volume deletion, financial-data overwrite, tool reinstallation, global Docker/WSL change, architecture replacement or frontend redesign occurred. Only the three affected application images were built; PostgreSQL's existing image/volume were reused. Dependency caches were reused for repair builds.
+
+## Final verification
+
+| Check | Result |
+|---|---|
+| Frontend tests | **24 passed**, 0 failed/skipped; includes all eleven routes, no automatic POSTs, dry-run-only preview, deliberate training and selected-model probability |
+| Java/infrastructure unit tests | **24 passed**, 0 failures/errors/skips |
+| PostgreSQL integration tests | **6 passed**, 0 failures/errors/skips, using a separate disposable Testcontainers database; migrations, constraints, CRUD, fixture import precision/deduplication, persistent budget and live gate |
+| Python tests | **23 passed**, 0 failed/skipped; quality, independent indicator values, causality, labels/dataset identity/purging, train-only preprocessing, all model families/baselines, safe artifacts, actual subprocess execution, health responsiveness, restart recovery and forward inference |
+| Total automated suite | **77 passed; 0 failures; 0 skipped** |
+| Builds | Frontend TypeScript/production build and Java JAR/image builds pass; ML CPU dependencies import successfully with container networking disabled |
+| Docker E2E | Full PostgreSQL → cleaning → indicators → features → training/evaluation → persistent registry/artifacts → inference → Spring/Nginx passes in `metis-phase2-test` with no key and explicit fixture provenance |
+| Artifact/data persistence | Price rows, terminal job, five artifacts and two idempotent predictions survive normal test-service restarts and ML-container recreation; loading does not retrain |
+| Browser | **18 views pass**: all eleven main routes, Overview mobile, Laboratory/Predictions/Settings mobile, and isolated registry/prediction/explorer pages. Zero error panels, stuck loaders or horizontal overflow. Real estimator outputs render only on the isolated test pages. |
+| Existing smoke tests | `smoke.py --restart-database` and `smoke.ps1` both pass against the final main stack |
+| Runtime/API | Java ↔ PostgreSQL, Java ↔ FastAPI, frontend ↔ Spring, Swagger UI/OpenAPI and typed ML response schemas verified |
+| Main database | All **16 application tables** plus Flyway history; **V1–V4** successful; Hibernate schema validation enabled and passing |
+| Existing data | All original **13 application tables** retain identical pre/post row counts and content fingerprints; Flyway history adds V3/V4 as intended |
+| Production isolation | Main historical prices, models, predictions, training datasets/jobs and provider requests remain empty; no synthetic data or fixture artifact was published |
+| Logs/health | Four main services healthy, zero automatic restart counts and zero ERROR/FATAL entries in the repaired backend |
+
+Non-blocking test/build notices remain: a dependency deprecation in Starlette's test client, Java 25 test-agent/Unsafe warnings, and the existing lazy ECharts bundle-size advisory. They do not represent failed tests or application runtime errors.
+
+## Final main Docker state
+
+| Service | State | Published address | Measured memory / limit |
+|---|---|---|---|
+| postgres | Running / healthy | Internal only | 25.43 MiB / 256 MiB |
+| spring-backend | Running / healthy | 127.0.0.1:8080 | 303.4 MiB / 768 MiB |
+| ml-api | Running / healthy | 127.0.0.1:8000 | 38.28 MiB / 1 GiB |
+| frontend | Running / healthy | 127.0.0.1:5173 | 13.08 MiB / 128 MiB |
+
+The separate `metis-phase2-test` stack is **stopped to release resources**; its database/artifact volumes are retained. Main application services remain running. The ML limit includes its bounded worker; the table measures idle final-state usage, not peak training memory.
+
+## Remaining acceptance dependencies
+
+- A genuine local unadjusted daily OHLCV dataset is needed for real-data training/evaluation and genuine market predictions. Default windows require approximately **462 closed sessions** per asset. The user explicitly selected isolated fixtures and no live requests. Import controls are ready; production models correctly remain absent until genuine local history is supplied and training is deliberately started.
+- Live Alpha Vantage ingestion remains **unverified pending explicit per-operation authorization**. The key is present, but no request was made. Compact history covers only the latest 100 sessions and cannot alone satisfy default training requirements. This is an authorization/data dependency, not an application startup defect.
+- Actual-outcome reconciliation is implemented; genuine outcomes cannot be validated before genuine forward predictions and their later local observations exist. No profitability or live-provider success is claimed.
+
+**Phase 2 is implemented and fixture-verified, but is not declared fully complete against genuine-data/live-provider acceptance.** No user intervention is needed to keep the application running.
+
+## Change list, dependencies, artifacts and commands
+
+Exact changed/new files: [PHASE2_FILES.md](PHASE2_FILES.md) (**75** source/configuration/test/documentation files). Full architecture, formulas, leakage rules, API contracts, bounds and instructions: [PHASE2.md](PHASE2.md).
+
+New direct Python dependencies: **scikit-learn 1.7.2**, **xgboost-cpu 3.0.5**, **skops 0.13.0**, **exchange-calendars 4.11.2**; transitive versions recorded in the existing requirements lock file. No frontend or Java dependency was added.
+
+Persistent artifact location: `/var/lib/metis/artifacts/<UUID>/`, mounted from `metis_model_artifacts` for the main application (empty) and `metis-phase2-test_model_artifacts` for isolated fixture models (retained). Native development defaults to `services/ml-api/.artifacts/`; pytest uses temporary directories. No fixture model is promoted to the main volume.
+
+From the project directory, existing images start with:
+
+```powershell
+docker compose up -d --no-build --wait --wait-timeout 240
+```
+
+Ignored `.cache` files hold non-secret acceptance summaries, database fingerprints, E2E case IDs and browser screenshots. Main source/data validation state was checked again after the final repairs. The Phase 1 acceptance record below is historical; its former missing-key state has been superseded by the current presence-only check.
+
+---
+
+<details>
+<summary>Retained Phase 1 acceptance and earlier progress (historical)</summary>
+
 # METIS Phase 1 — operational acceptance
 
 Verified **24 October 2026 (Asia/Calcutta)** in `D:\QuantOPs\Metis`.
@@ -209,6 +307,9 @@ docker compose up -d --wait --wait-timeout 240
 ```
 
 Then open http://localhost:5173. Stop normally with `docker compose stop` or `docker compose down`; do not remove volumes. Recommended next development work: close the Docker/PostgreSQL/provider acceptance gaps first, then build a versioned, split-aware dataset/temporal feature pipeline before training any model.
+
+
+</details>
 
 
 </details>

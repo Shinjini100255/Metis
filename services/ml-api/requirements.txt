@@ -3,3 +3,7 @@ uvicorn==0.37.0
 pydantic==2.11.9
 pandas==2.3.3
 numpy==2.3.3
+scikit-learn==1.7.2
+xgboost-cpu==3.0.5
+skops==0.13.0
+exchange-calendars==4.11.2
