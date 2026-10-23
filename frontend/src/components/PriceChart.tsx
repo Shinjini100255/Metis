@@ -1,0 +1,22 @@
+import { useEffect, useRef } from 'react';
+import * as echarts from 'echarts/core';
+import { LineChart, BarChart, CandlestickChart, PieChart } from 'echarts/charts';
+import { GridComponent, TooltipComponent, DataZoomComponent, LegendComponent } from 'echarts/components';
+import { CanvasRenderer } from 'echarts/renderers';
+import type { Price, Indicators } from '../types/api';
+import { Empty } from './UI';
+import { usePreferences } from '../hooks/usePreferences';
+echarts.use([LineChart,BarChart,CandlestickChart,PieChart,GridComponent,TooltipComponent,DataZoomComponent,LegendComponent,CanvasRenderer]);
+export default function PriceChart({ prices, indicators, mode = 'line' }: { prices: Price[]; indicators?: Indicators; mode?: 'line' | 'candlestick' }) {
+ const ref=useRef<HTMLDivElement>(null);const {preferences}=usePreferences();
+ useEffect(()=>{ if(!ref.current || !prices.length) return;const chart=echarts.init(ref.current); const color=preferences.theme==='dark'?'#8d9bad':'#58677c';
+  chart.setOption({ animation:false,backgroundColor:'transparent',textStyle:{fontFamily:'Inter, Segoe UI, sans-serif',color},legend:{show:true,top:4,right:15,textStyle:{color},itemWidth:13,itemHeight:3},tooltip:{trigger:'axis',backgroundColor:preferences.theme==='dark'?'#182231':'#fff',borderColor:'#344155',textStyle:{color:preferences.theme==='dark'?'#eff4fb':'#142033'}},axisPointer:{link:[{xAxisIndex:'all'}]},grid:[{left:58,right:20,top:42,height:'58%'},{left:58,right:20,top:'75%',height:'13%'}],xAxis:[{type:'category',data:prices.map(p=>p.trading_date),boundaryGap:mode==='candlestick',axisLine:{lineStyle:{color:'#344155'}},axisLabel:{color},axisTick:{show:false}},{type:'category',gridIndex:1,data:prices.map(p=>p.trading_date),axisLabel:{show:false},axisTick:{show:false},axisLine:{show:false}}],yAxis:[{scale:true,splitLine:{lineStyle:{color:preferences.theme==='dark'?'#1d2837':'#e4eaf2',type:'dashed'}},axisLabel:{color}},{gridIndex:1,splitNumber:2,splitLine:{show:false},axisLabel:{color,formatter:(v:number)=> v>=1e6?`${(v/1e6).toFixed(0)}M`:`${(v/1e3).toFixed(0)}K`}}],dataZoom:[{type:'inside',xAxisIndex:[0,1]},{type:'slider',xAxisIndex:[0,1],height:14,bottom:5,borderColor:'transparent',fillerColor:'rgba(115,143,255,.13)',textStyle:{color}}],series:[mode==='line'?{name:'Close',type:'line',data:prices.map(p=>p.close),showSymbol:false,lineStyle:{color:'#8c9eff',width:2},areaStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'rgba(140,158,255,.18)'},{offset:1,color:'rgba(140,158,255,0)'}])}}:{name:'OHLC',type:'candlestick',data:prices.map(p=>[p.open,p.close,p.low,p.high]),itemStyle:{color:'#36cba2',color0:'#ed7e88',borderColor:'#36cba2',borderColor0:'#ed7e88'}},...(['sma20','sma50'] as const).map((key,i)=>({name:i?'SMA 50':'SMA 20',type:'line',data:indicators?.points.map(p=>p[key])||[],showSymbol:false,lineStyle:{width:1,color:i?'#e3b467':'#54b6ce',type:'dashed'}})),{name:'Volume',type:'bar',xAxisIndex:1,yAxisIndex:1,data:prices.map(p=>({value:p.volume,itemStyle:{color:p.close>=p.open?'#287565':'#834b59'}}))}] });
+  const observer=new ResizeObserver(()=>chart.resize());observer.observe(ref.current);return ()=>{observer.disconnect();chart.dispose();};
+ },[prices,indicators,mode,preferences.theme]);
+ return prices.length?<div className="price-chart" ref={ref} role="img" aria-label={`${mode} chart of historical prices and volume. Values are available in the history table.`}/>:<Empty title="Your next insight starts with history">Fetch historical data for this asset to reveal price action, volume, and moving averages. No synthetic prices are used.</Empty>;
+}
+export function AllocationChart({ data }: { data: {name:string;value:number}[] }) {
+ const ref=useRef<HTMLDivElement>(null); const {preferences}=usePreferences();
+ useEffect(()=>{if(!ref.current||!data.length)return;const chart=echarts.init(ref.current);chart.setOption({animation:false,tooltip:{trigger:'item'},color:['#8c9eff','#45c5a1','#54b6ce','#e3b467','#ca94de'],series:[{type:'pie',radius:['55%','78%'],label:{color:preferences.theme==='dark'?'#a4b2c7':'#465267',formatter:'{b}: {d}%'},data}]});const observer=new ResizeObserver(()=>chart.resize());observer.observe(ref.current);return ()=>{observer.disconnect();chart.dispose();};},[data,preferences.theme]);
+ return data.length?<div className="allocation-chart" role="img" aria-label="Portfolio allocation by valued positions" ref={ref}/>:<Empty title="Allocation unavailable">Add holdings and fetch matching-currency prices.</Empty>;
+}

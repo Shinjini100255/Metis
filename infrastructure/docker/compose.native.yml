@@ -1,0 +1,5 @@
+# Explicit opt-in for native Java development. Still loopback-only.
+services:
+  postgres:
+    ports:
+      - "127.0.0.1:5432:5432"

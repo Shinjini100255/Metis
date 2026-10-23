@@ -1,0 +1,95 @@
+name: metis
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "5m"
+    max-file: "2"
+services:
+  postgres:
+    image: postgres:17.6-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-metis}
+      POSTGRES_USER: ${POSTGRES_USER:-metis}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    command: [postgres, -c, shared_buffers=64MB, -c, max_connections=20, -c, work_mem=4MB]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    mem_limit: 256m
+    cpus: 0.50
+    restart: "no"
+    logging: *logging
+  ml-api:
+    build:
+      context: services/ml-api
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      OMP_NUM_THREADS: "1"
+      OPENBLAS_NUM_THREADS: "1"
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
+      interval: 30s
+      timeout: 4s
+      retries: 5
+    mem_limit: 256m
+    cpus: 0.50
+    restart: "no"
+    logging: *logging
+  spring-backend:
+    build:
+      context: .
+      dockerfile: backend/spring-boot/Dockerfile
+    environment:
+      SERVER_ADDRESS: 0.0.0.0
+      DATABASE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-metis}
+      POSTGRES_USER: ${POSTGRES_USER:-metis}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      ML_API_URL: http://ml-api:8000
+      ALPHA_VANTAGE_API_KEY: ${ALPHA_VANTAGE_API_KEY:-}
+      MARKET_DAILY_LIMIT: ${MARKET_DAILY_LIMIT:-25}
+      MARKET_MIN_INTERVAL_SECONDS: ${MARKET_MIN_INTERVAL_SECONDS:-15}
+      MARKET_CACHE_HOURS: ${MARKET_CACHE_HOURS:-12}
+      PROVIDER_TIMEOUT_SECONDS: ${PROVIDER_TIMEOUT_SECONDS:-12}
+      PROVIDER_RETRIES: ${PROVIDER_RETRIES:-0}
+      JAVA_TOOL_OPTIONS: -Xms128m -Xmx384m -XX:MaxMetaspaceSize=160m -Xss512k -XX:ActiveProcessorCount=2
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ml-api:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, wget, -q, --spider, http://127.0.0.1:8080/actuator/health]
+      interval: 20s
+      timeout: 5s
+      start_period: 60s
+      retries: 6
+    mem_limit: 768m
+    cpus: 1.0
+    restart: "no"
+    logging: *logging
+  frontend:
+    build:
+      context: frontend
+    ports:
+      - "127.0.0.1:5173:8080"
+    depends_on:
+      spring-backend:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, wget, -q, --spider, http://127.0.0.1:8080/]
+      interval: 30s
+      timeout: 3s
+      retries: 5
+    mem_limit: 128m
+    cpus: 0.25
+    restart: "no"
+    logging: *logging
+volumes:
+  postgres_data:

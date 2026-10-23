@@ -1,0 +1,12 @@
+import { Activity, AlertCircle, Database, Loader2, ArrowUpRight } from 'lucide-react';
+import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
+export function Badge({ children, tone = 'neutral' }: { children: ReactNode; tone?: 'neutral' | 'good' | 'bad' | 'accent' }) { return <span className={`badge ${tone}`}><i />{children}</span>; }
+export function Panel({ title, eyebrow, action, children, className = '' }: { title?: string; eyebrow?: string; action?: ReactNode; children: ReactNode; className?: string }) { return <section className={`panel ${className}`}>{(title || action) && <div className="panel-head"><div>{eyebrow && <span className="eyebrow">{eyebrow}</span>}<h2>{title}</h2></div>{action}</div>}{children}</section>; }
+export function Empty({ title = 'No data available', children, icon = <Database size={25} /> }: { title?: string; children?: ReactNode; icon?: ReactNode }) { return <div className="empty">{icon}<h3>{title}</h3><p>{children}</p></div>; }
+export function Loading({ label = 'Loading workspace data' }: { label?: string }) { return <div className="loading" role="status"><Loader2 className="spin" size={18} />{label}</div>; }
+export function ErrorState({ error, retry }: { error: Error | null; retry?: () => void }) { return <div className="error-state" role="alert"><AlertCircle size={20} /><div><strong>Connection needs attention</strong><p>{error?.message || 'Data could not be loaded.'}</p></div>{retry && <button onClick={retry}>Retry</button>}</div>; }
+export function Metric({ label, value, detail, trend }: { label: string; value: ReactNode; detail?: ReactNode; trend?: number | null }) { return <div className="metric"><span className="eyebrow">{label}</span><div className={`metric-value ${trend == null ? '' : trend >= 0 ? 'positive' : 'negative'}`}>{value}</div><small>{detail || 'Awaiting historical data'}</small></div>; }
+export function PageTitle({ title, subtitle, action, eyebrow = 'WORKSPACE / INTELLIGENCE' }: { title: string; subtitle: string; action?: ReactNode; eyebrow?: string }) { return <header className="page-title"><div><div className="eyebrow">{eyebrow}</div><h1>{title}<span>.</span></h1><p>{subtitle}</p></div>{action}</header>; }
+export function PhaseNote({ children }: { children: ReactNode }) { return <div className="phase-note"><Activity size={18} /><p>{children}</p><Badge>Future phase</Badge></div>; }
+export function TextLink({ to, children }: { to: string; children: ReactNode }) { return <Link className="text-link" to={to}>{children}<ArrowUpRight size={14} /></Link>; }

@@ -1,0 +1,54 @@
+server:
+  port: 8080
+  address: ${SERVER_ADDRESS:127.0.0.1}
+  error:
+    include-message: never
+    include-stacktrace: never
+  tomcat:
+    threads:
+      max: 16
+      min-spare: 2
+spring:
+  application:
+    name: metis-backend
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/metis}
+    username: ${POSTGRES_USER:metis}
+    password: ${POSTGRES_PASSWORD}
+    hikari:
+      maximum-pool-size: 4
+      minimum-idle: 1
+      connection-timeout: 5000
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+  jackson:
+    time-zone: UTC
+    property-naming-strategy: SNAKE_CASE
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+logging:
+  structured:
+    format:
+      console: ecs
+metis:
+  ml-url: ${ML_API_URL:http://127.0.0.1:8000}
+  provider-key: ${ALPHA_VANTAGE_API_KEY:}
+  provider-timeout-seconds: ${PROVIDER_TIMEOUT_SECONDS:12}
+  provider-retries: ${PROVIDER_RETRIES:0}
+  market-cache-hours: ${MARKET_CACHE_HOURS:12}
+  market-daily-limit: ${MARKET_DAILY_LIMIT:25}
+  market-min-interval-seconds: ${MARKET_MIN_INTERVAL_SECONDS:15}
